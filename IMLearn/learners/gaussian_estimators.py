@@ -51,11 +51,40 @@ class UnivariateGaussian:
         Sets `self.mu_`, `self.var_` attributes according to calculated estimation (where
         estimator is either biased or unbiased). Then sets `self.fitted_` attribute to `True`
         """
-        raise NotImplementedError()
-
+        
+        self.mu_ = np.mean(X)
+        if self.biased_ == True:
+            self.var_ = np.var(X)
+        else: self.var_ = np.var(X, ddof=1)
         self.fitted_ = True
         return self
 
+    
+    @staticmethod
+    def __calc_pdf(sample, mu, var):
+        """
+        Calculate PDF of one sample under Gaussian model with given estimators
+        
+        Parameters
+        ----------
+        sample: float
+        Sample to calculate PDF for
+        mu: float
+        given expectation
+        var: float
+        given variance
+        
+        Returns
+        -------
+        pdf: float
+        Calculated value of given sample for PDF function of N(mu_, var_)
+        """
+        
+        power = (-1/2)*((sample - mu)/np.sqrt(var))**2
+        coeff = 1/(np.sqrt((var)*2*np.pi))
+        pdf = coeff * np.exp(power)
+        return pdf
+        
     def pdf(self, X: np.ndarray) -> np.ndarray:
         """
         Calculate PDF of observations under Gaussian model with fitted estimators
@@ -74,9 +103,17 @@ class UnivariateGaussian:
         ------
         ValueError: In case function was called prior fitting the model
         """
+                 
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `pdf` function")
-        raise NotImplementedError()
+            
+        
+        pdfs = np.ndarray(shape = np.shape(X))
+        for sample in X:
+           pdfs.append(self.__calc_pdf(sample, self.mu_, self.var_))
+        return pdfs
+                  
+                
 
     @staticmethod
     def log_likelihood(mu: float, sigma: float, X: np.ndarray) -> float:
@@ -97,7 +134,11 @@ class UnivariateGaussian:
         log_likelihood: float
             log-likelihood calculated
         """
-        raise NotImplementedError()
+        var = sigma**2
+        val = 0
+        for sample in X:
+           val = val + np.log((UnivariateGaussian.__calc_pdf(sample, mu, var)))
+        return val
 
 
 class MultivariateGaussian:
