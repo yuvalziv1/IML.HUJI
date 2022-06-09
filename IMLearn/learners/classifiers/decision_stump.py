@@ -3,6 +3,7 @@ from typing import Tuple, NoReturn
 from ...base import BaseEstimator
 import numpy as np
 from itertools import product
+from ...metrics import misclassification_error
 
 
 class DecisionStump(BaseEstimator):
@@ -39,7 +40,16 @@ class DecisionStump(BaseEstimator):
         y : ndarray of shape (n_samples, )
             Responses of input data to fit to
         """
-        raise NotImplementedError()
+
+        n = X.shape[1]
+        err = np.inf
+        for j in range(n):
+            for sign in {-1,1}:
+                threshold, threshold_err = self._find_threshold(X[:, j], y, sign)
+                if threshold_err < err:
+                    self.threshold_, self.j_, self.sign_ = threshold, j, sign
+                    err = threshold_err
+
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -63,7 +73,9 @@ class DecisionStump(BaseEstimator):
         Feature values strictly below threshold are predicted as `-sign` whereas values which equal
         to or above the threshold are predicted as `sign`
         """
-        raise NotImplementedError()
+        other_sign = -1 * self.sign_
+        responses = (X[:, self.j_] >= self.threshold_) * self.sign_ + (X[:, self.j_] < self.threshold_) * other_sign
+        return responses
 
     def _find_threshold(self, values: np.ndarray, labels: np.ndarray, sign: int) -> Tuple[float, float]:
         """
@@ -95,7 +107,16 @@ class DecisionStump(BaseEstimator):
         For every tested threshold, values strictly below threshold are predicted as `-sign` whereas values
         which equal to or above the threshold are predicted as `sign`
         """
-        raise NotImplementedError()
+        sorted_idx = np.argsort(values)
+        sorted_values = values[sorted_idx]
+        sorted_labels = labels[sorted_idx]
+        total_loss = np.sum(np.abs(sorted_labels[np.sign(sorted_labels) != sign]))
+        cumusum = np.cumsum(sign * sorted_labels)
+        loss = np.append(total_loss, cumusum + total_loss)
+        sorted_values = np.append(sorted_values, np.inf)
+        min_idx = np.argmin(loss)
+        return sorted_values[min_idx], loss[min_idx]
+
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -114,4 +135,4 @@ class DecisionStump(BaseEstimator):
         loss : float
             Performance under missclassification loss function
         """
-        raise NotImplementedError()
+        return misclassification_error(y, self._predict(X))
